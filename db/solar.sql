@@ -78,6 +78,27 @@ CREATE TABLE `sp_raw_production` (
   `v9` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `sp_raw2`
+--
+
+CREATE TABLE `sp_raw2` (
+  `id` bigint(20) NOT NULL,
+  `device_serial` varchar(15) NOT NULL,
+  `src_timestamp` datetime NOT NULL,
+  `ac_curr` float NOT NULL,
+  `ac_power` float NOT NULL,
+  `ac_volt` float NOT NULL,
+  `dc_curr` float NOT NULL,
+  `dc_power` float NOT NULL,
+  `dc_volt` float NOT NULL,
+  `energy_total` float NOT NULL,
+  `heatsink_temp` float NOT NULL,
+  `insert_timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
 --
 -- Indexes for dumped tables
 --
@@ -103,6 +124,14 @@ ALTER TABLE `sp_raw_production`
   ADD KEY `device_serial_indx` (`device_serial`);
 
 --
+-- Indexes for table `sp_raw2`
+--
+ALTER TABLE `sp_raw2`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `src_timestamp_indx` (`src_timestamp`),
+  ADD KEY `device_serial_indx` (`device_serial`);
+
+--
 -- AUTO_INCREMENT for dumped tables
 --
 
@@ -121,6 +150,12 @@ ALTER TABLE `sp_power`
 --
 ALTER TABLE `sp_raw_production`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=239813;
+--
+-- AUTO_INCREMENT for table `sp_raw2`
+--
+ALTER TABLE `sp_raw2`
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=407673;
+COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

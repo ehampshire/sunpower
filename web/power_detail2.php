@@ -1,7 +1,10 @@
 <?php
 include("vars.php");
-$bar = "true";
 $this_form = $_SERVER['PHP_SELF'];
+$notimeframe = $_REQUEST["notimeframe"];
+$start = $_REQUEST["start"];
+$end = $_REQUEST["end"];
+$bar = $_REQUEST["bar"];
 /*
 $userTimezone = new DateTimeZone('America/Denver');
 $gmtTimezone = new DateTimeZone('GMT');
@@ -15,18 +18,14 @@ $myInterval=DateInterval::createFromDateString((string)$offset . 'seconds');
 $myDateTimeEnd->sub($myInterval);
 $resultEnd = $myDateTimeEnd->format('Y-m-d H:i:s');
 if ($start == "") {
-	//$myDateTimeStart = new DateTime(gmdate('Y-m-d') . " 00:00:00");
-	$myDateTimeStart = new DateTime(date('Y-m-d') . " 00:00:00");
+	$myDateTimeStart = new DateTime(gmdate('Y-m-d') . " 00:00:00");
 } else {
 	$myDateTimeStart = new DateTime($start . " 00:00:00");
 } 
 $offset = $userTimezone->getOffset($myDateTimeStart);
 $myInterval=DateInterval::createFromDateString((string)$offset . 'seconds');
-//$myDateTimeStart->sub($myInterval);
+$myDateTimeStart->sub($myInterval);
 $resultStart = $myDateTimeStart->format('Y-m-d H:i:s');
-if ($notimeframe != "" || $end == "") {
-	$resultEnd = "";
-}
 */
 if ($end == "") {
 	$myDateTimeEnd = new DateTime(date('Y-m-d') . " 00:00:00");
@@ -48,7 +47,9 @@ if ($start == "") {
 } 
 $resultStart = $myDateTimeStart->format('Y-m-d H:i:s');
 $resultEnd = $myDateTimeEnd->format('Y-m-d H:i:s');
-//$resultStart = "2018-06-02 00:00:00";
+if ($notimeframe != "" || $end == "") {
+	$resultEnd = "";
+}
 //echo "resultStart: $resultStart<BR>";
 //echo "resultEnd: $resultEnd<BR>";
    // Connecting, selecting database
@@ -56,9 +57,10 @@ $resultEnd = $myDateTimeEnd->format('Y-m-d H:i:s');
    $conn = new PDO("mysql:host=$ip;dbname=$dbName", $username, $password);
    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
    $data = "";
-   $kwh_multiplier = 60 / $interval_minutes;
+   //echo "<BR>bar: $bar<BR>";
    if ($conn) {
-	$current_date_utc = gmdate("Y-m-d");
+	//$current_date_utc = gmdate("Y-m-d");
+	$current_date_utc = date("Y-m-d");
 	$total_generated = 0;
 	$total_used = 0;
 	$total_net = 0;
@@ -74,26 +76,27 @@ $resultEnd = $myDateTimeEnd->format('Y-m-d H:i:s');
 		$period = $row["period"];
 		$generated = $row["generated"];
 		$used = $row["used"];
-   		//$generated = round($generated * $kwh_multiplier, 3);
-   		//$used = round($used * $kwh_multiplier, 3);
 		$net = $generated + $used;
-		//$net = abs($net);
 		//$data = $data . "['$period', $generated, $used, $net],";
 		if ($bar != "") {
 			if ($counter < 11) {
 				$data = $data . "['$period', $generated, $used, $net],";
-				//$data = $data . "['$period', $generated, $net, $used],";
 			}
 		} else {
 			$data = $data . "['$period', $generated, $used, $net],";
-			//$data = $data . "['$period', $generated, $net, $used],";
 		}
 		$total_generated += $generated;
 		$total_used += $used;
 		$total_net += $net;
 		$counter++;
 	}
-	$query = "select energy_total from sp_raw2 where insert_timestamp>='$resultStart' and device_serial='$PVname' order by insert_timestamp ASC"; 
+	if ($bar == "" && $resultEnd == "") {
+		$query = "select energy_total from sp_raw2 where insert_timestamp>='$resultStart' and device_serial='$PVname' order by insert_timestamp ASC"; 
+	} else if ($bar != "") {
+		$query = "select energy_total from sp_raw2 where insert_timestamp>='$resultStart' and device_serial='$PVname' order by insert_timestamp ASC"; 
+	} else {
+		$query = "select energy_total from sp_raw2 where insert_timestamp>='$resultStart' and insert_timestamp<='$resultEnd' and device_serial='$PVname' order by insert_timestamp ASC"; 
+	}
 	$counter = 0;
 	$first_row_energy = 0;
 	$last_row_energy = 0;
@@ -107,17 +110,13 @@ $resultEnd = $myDateTimeEnd->format('Y-m-d H:i:s');
 	$energy_total = $last_row_energy - $first_row_energy;
 	//echo "<BR>first_row: $first_row_energy<BR>last_row: $last_row_energy<BR>energy_total: $energy_total<BR>";
    }
-   //$total_generated = round($total_generated * $kwh_multiplier, 3);
-   //$total_used = round($total_used * $kwh_multiplier, 3);
-   //$total_net = round($total_net * $kwh_multiplier, 3);
-   //$total_net = round($total_net, 3);
-   //$total_net = round($energy_total, 3);
-   $total_generated = round($total_generated, 3);
-   $total_used = round($energy_total, 3);
-   $total_net = $total_generated + $total_used;
    //$total_generated = round($total_generated * 0.08333333333, 3);
    //$total_used = round($total_used * 0.08333333333, 3);
    //$total_net = round($total_net * 0.08333333333, 3);
+   $total_generated = round($total_generated, 3);
+   $total_used = round($energy_total, 3);
+   $total_net = $total_generated + $total_used;
+   //echo "<BR>total_generated: $total_generated<BR>total_used: $total_used<BR>total_net: $total_net<BR>";
    if ($total_used < 0) {
 	$to_from_grid = "To";
 	$total_used = abs($total_used);
@@ -127,7 +126,7 @@ $resultEnd = $myDateTimeEnd->format('Y-m-d H:i:s');
 	$to_from_grid_value = $total_net - $total_used;
 	if ($to_from_grid_value < 0) {
 		$to_from_grid_value = 0;
-		$total_generated_pie_value = $total_generated;
+		$total_generated_pie_value = total_generated;
 	} else {
 		$to_from_grid_value = round($total_used / $total_net * 100, 1);
 		$total_generated_pie_value = 100 - round($total_used / $total_net * 100, 1);
@@ -154,7 +153,7 @@ $resultEnd = $myDateTimeEnd->format('Y-m-d H:i:s');
     <script type="text/javascript">
    
     // Load the Visualization API.
-    google.charts.load('current', {packages: ['corechart', 'bar' , 'gauge', 'table']});
+    google.charts.load('current', {packages: ['corechart', 'bar' , 'table']});
      
     // Set a callback to run when the Google Visualization API is loaded.
     google.charts.setOnLoadCallback(drawChart);
@@ -183,8 +182,7 @@ $resultEnd = $myDateTimeEnd->format('Y-m-d H:i:s');
             //title: 'Todays Energy Mix',
             width: 400,
             height: 250,
-	    pieHole: 0.6,
-	    titleTextStyle: {color: 'black', bold: true, fontSize: 15},
+	    pieHole: 0.4,
 	    pieSliceTextStyle: {color: 'black', bold: true, fontSize: 20},
 	    //colors:['red','#004411'],
             slices: {
@@ -196,51 +194,23 @@ $resultEnd = $myDateTimeEnd->format('Y-m-d H:i:s');
       var barData = new google.visualization.DataTable();
 	barData.addColumn('string', 'Period');
 	barData.addColumn('number', 'Generated');
-	barData.addColumn('number', 'Used');
 	barData.addColumn('number', 'To/From Grid');
+	barData.addColumn('number', 'Used');
 	barData.addRows([ <?= $data ?> ]);
 
 	// Options
         var barOptions = {
-            title: 'Last 10 Periods Power (kW)',
+            title: 'Power',
             width: 1000,
-            height: 550,
+            height: 450,
             hAxis: {title: 'Period'},
-            vAxis: {title: 'Power (kW)'},
-        };
-
-       var gaugeData = google.visualization.arrayToDataTable([
-          ['Label', 'Value'],
-          ['Producing', <?= $total_production ?> ]
-        ]);
-
-	var gaugeOptions = {
-          width: 350, height: 200,
-          min: 0, max: 8,
-          redFrom: 0, redTo: 1,
-          yellowFrom:1, yellowTo: 3,
-          greenFrom:3, greenTo: 8,
-          minorTicks: 5  
-        };
-
-       var gaugeDataConsumption = google.visualization.arrayToDataTable([
-          ['Label', 'Value'],
-          ['Consuming', <?= $total_consumption ?> ]
-        ]);
-
-	var gaugeOptionsConsumption = {
-          width: 350, height: 200,
-          min: 0, max: 8,
-          redFrom: 4, redTo: 8,
-          yellowFrom:2, yellowTo: 4,
-          greenFrom:0, greenTo: 2,
-          minorTicks: 5
+            vAxis: {title: 'kW'},
         };
 
         var tableOptions = {
             showRowNumber: true,
             width: '100%',
-            height: 550,
+            height: '100%',
         };
 
       // Instantiate and draw our chart, passing in some options.
@@ -256,10 +226,6 @@ $resultEnd = $myDateTimeEnd->format('Y-m-d H:i:s');
       pieChart.draw(pieData, pieOptions);
       var table = new google.visualization.Table(document.getElementById('table_div'));
       table.draw(barData, tableOptions);
-      var gauge = new google.visualization.Gauge(document.getElementById('gauge_div'));
-      gauge.draw(gaugeData, gaugeOptions);
-      var gaugeConsumption = new google.visualization.Gauge(document.getElementById('gauge_divConsumption'));
-      gaugeConsumption.draw(gaugeDataConsumption, gaugeOptionsConsumption);
       //var table2 = new google.visualization.Table(document.getElementById('table2_div'));
       //table2.draw(tableData, tableOptions);
     }
@@ -267,20 +233,25 @@ $resultEnd = $myDateTimeEnd->format('Y-m-d H:i:s');
     </script>
 
     <!--Table and divs that hold the pie charts-->
-    <TR><TD colspan=2>
-	<TABLE BORDER=0>
-	<TR>
-    		<TD><div id="gauge_div"></div></TD>
-    		<TD><div id="gauge_divConsumption"></div></TD>
-	</TR>
-	</TABLE>
-    </TD></TR>
-    </TABLE>
-    </TD>
-    <TD>
+<FORM action= <?= $this_form ?>>
+<table BORDER=0> 
+<tr>
+<TD valign=bottom>Start: <input name=start onfocus=showCalendarControl(this); type=text></TD>
+<TD>-</TD>
+<TD valign=bottom>End: <input name=end onfocus=showCalendarControl(this); type=text></TD>
+<TD><input type=submit value="Change Timeframe"></TD>
+</tr>
+<tr>
+<TD align=right><B><?= $resultStart ?></TD>
+<TD>-</TD>
+<TD><B><?= $resultEnd ?></TD>
+</tr>
+</table>
+</FORM>
     <table class="columns">
       <tr>
-        <td style="border: 1px solid #ccc">
+        <td valign=top><div id="bar_div" style="border: 1px solid #ccc"></div></td>
+        <td valign=top style="border: 1px solid #ccc">
 	<TABLE>
 		<TR><TD colspan=3 align=center><FONT SIZE=4><B>Today's Energy Mix</B></FONT></TD></TR>
 		<TR><TD colspan=3><HR></TD></TR>
@@ -299,18 +270,16 @@ $resultEnd = $myDateTimeEnd->format('Y-m-d H:i:s');
 		<TR><TD><div id="pie_div"></div></TD></TR>
 		<TR><TD>
 			<TABLE width=400>
-				<TR><TD>&nbsp;</TD>
-				<TD>Total Energy Used:</TD><TD><B> <?= $total_net ?> kWh</B></TD>
+				<TR><TD>&nbsp;</TD><TD>Total Energy Used:</TD><TD><B> <?= $total_net ?> kWh</B></TD>
 				<TR><TD colspan=3><HR></TD></TR>
 				<TR><TD><img src=from_solar.png></TD><TD>From Solar:</TD><TD><B> <?= $total_generated ?> kWh</B></TD>
 				<TR><TD><img src=<?= $to_from_grid_image ?>></TD><TD><?= $to_from_grid ?> Grid:</TD><TD><B> <?= $total_used ?> kWh</B></TD>
-				<TR valign=bottom><TD colspan=2><A HREF=power_detail2.php?notimeframe=true>Details</A></TD></TR>
+				<TR valign=bottom><TD colspan=2><A HREF=power_detail.php>Details</A></TD></TR>
 			</TABLE>
 		</TD></TR>
 	</TABLE>
 	</td>
-        <td><div id="bar_div" style="border: 1px solid #ccc"></div></td>
-        <td valign=top><div id="table_div" style="border: 1px solid #ccc"></div></td>
+        <td><div id="table_div" style="border: 1px solid #ccc"></div></td>
         <td><div id="table2_div" style="border: 1px solid #ccc"></div></td>
       </tr>
     </table>
