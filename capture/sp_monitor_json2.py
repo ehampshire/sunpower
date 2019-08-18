@@ -169,9 +169,9 @@ def insert_pv_monitor_line(cnx, x, datatime_timestamp):
                 print(cursor.statement)
                 raise
             id = cursor.lastrowid
-            print "Insert SUCCESS! TableID: ", id
+            print ("Insert SUCCESS! TableID: %s", id)
         else:
-            print "Row exists ", id," not adding!"
+            print ("Row exists $s not adding!", id)
     cursor.close()
     fcursor.close()
 
@@ -279,9 +279,9 @@ def insert_microinverter_line(cnx, x, datatime_timestamp):
                 print(cursor.statement)
                 raise
             id = cursor.lastrowid
-            print "Insert SUCCESS! TableID: ", id
+            print ("Insert SUCCESS! TableID: %s", id)
         else:
-            print "Row exists ", id," not adding!"
+            print ("Row exists %s not adding!", id)
     cursor.close()
     fcursor.close()
 
