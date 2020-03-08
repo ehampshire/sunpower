@@ -1,13 +1,18 @@
 #!/usr/bin/python
 
-import urllib, json
-import datetime, time
+try: #python3
+        from urllib.request import urlopen
+except: #python2
+        from urllib2 import urlopen
+import datetime, time, json
 from time import gmtime, strftime
 import sys
 import argparse
 from os import path
+#import configparser
+#import pcapy, re, os
 from configparser import ConfigParser
-import pcapy, re, os
+import re, os
 import mysql.connector
 from mysql.connector import errorcode
 
@@ -41,8 +46,8 @@ def main():
     ipAddress = config["defaults"]["ipAddress"]
 
     url = "http://{}/cgi-bin/dl_cgi?Command=DeviceList".format(str(ipAddress))
-    print ("Attempting to hit URL: %s") % (url)
-    response = urllib.urlopen(url)
+    print(("Attempting to hit URL: %s") % (url))
+    response = urlopen(url)
     parsed = json.loads(response.read())
     #print json.dumps(parsed, indent=4, sort_keys=True)
 
@@ -62,13 +67,16 @@ def main():
     counter = 0
     for x in parsed["devices"]:
         this_device_serial = x["SERIAL"] 
-        DATATIME = x["DATATIME"]
-        datatime_timestamp = datetime.datetime.strptime(DATATIME, "%Y,%m,%d,%H,%M,%S")
+        try:
+            DATATIME = x["DATATIME"]
+            datatime_timestamp = datetime.datetime.strptime(DATATIME, "%Y,%m,%d,%H,%M,%S")
+        except: #just a summary entry
+            continue
 
         if (this_device_serial != "PVS5M508095p" and this_device_serial != "PVS5M508095c" and this_device_serial != "ZT162585000441C1402"):
             #ac_power = float(x["ac_power"])  * 1000
             ac_power = float(x["p_3phsum_kw"])  * 1000
-            print ("%s : %s : %s : %s") % (counter, this_device_serial, ac_power, datatime_timestamp)
+            print(("%s : %s : %s : %s") % (counter, this_device_serial, ac_power, datatime_timestamp))
             insert_microinverter_line(cnx, x, datatime_timestamp)
     
         elif (this_device_serial == "PVS5M508095c"):
@@ -76,7 +84,7 @@ def main():
             #energy_total = x["energy_total"]
             power_w = x["p_3phsum_kw"]
             energy_total = x["net_ltea_3phsum_kwh"]
-            print ("%s : %s : %s : %s") % (counter, this_device_serial, power_w, energy_total)
+            print(("%s : %s : %s : %s") % (counter, this_device_serial, power_w, energy_total))
             insert_pv_monitor_line(cnx, x, datatime_timestamp)
         counter+=1
 
@@ -139,7 +147,7 @@ def insert_pv_monitor_line(cnx, x, datatime_timestamp):
         fcursor.execute(check_existing_record_query, check_existing_record_data)
         #print(fcursor.statement)
     except:
-        print(fcursor.statement)
+        print((fcursor.statement))
         raise
 
     add_raw_production_sql = ("INSERT INTO sp_raw2 "
@@ -163,15 +171,15 @@ def insert_pv_monitor_line(cnx, x, datatime_timestamp):
         if (id is None):
             try:
                 cursor.execute(add_raw_production_sql, insert_line)
-                print(cursor.statement)
+                print((cursor.statement))
             except:
                 print(insert_line)
-                print(cursor.statement)
+                print((cursor.statement))
                 raise
             id = cursor.lastrowid
-            print ("Insert SUCCESS! TableID: %s", id)
+            print("Insert SUCCESS! TableID: ", id)
         else:
-            print ("Row exists $s not adding!", id)
+            print("Row exists ", id," not adding!")
     cursor.close()
     fcursor.close()
 
@@ -234,7 +242,7 @@ def insert_microinverter_line(cnx, x, datatime_timestamp):
         fcursor.execute(check_existing_record_query, check_existing_record_data)
         #print(fcursor.statement)
     except:
-        print(fcursor.statement)
+        print((fcursor.statement))
         raise
 
     add_raw_production_sql = ("INSERT INTO sp_raw2 "
@@ -273,15 +281,15 @@ def insert_microinverter_line(cnx, x, datatime_timestamp):
         if (id is None):
             try:
                 cursor.execute(add_raw_production_sql, insert_line)
-                print(cursor.statement)
+                print((cursor.statement))
             except:
                 print(insert_line)
-                print(cursor.statement)
+                print((cursor.statement))
                 raise
             id = cursor.lastrowid
-            print ("Insert SUCCESS! TableID: %s", id)
+            print("Insert SUCCESS! TableID: ", id)
         else:
-            print ("Row exists %s not adding!", id)
+            print("Row exists ", id," not adding!")
     cursor.close()
     fcursor.close()
 
